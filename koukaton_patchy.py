@@ -6,6 +6,7 @@ import time
 import pygame as pg
 
 
+
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
 NUM_OF_BOMBS = 5
@@ -237,31 +238,51 @@ def main():
     clock = pg.time.Clock()
     beam = None                                 
     tmr = 0
+    
+    
+    pg.mixer.init()
+    pg.mixer.music.load("fig/title.mp3") #  BGM
+    pg.mixer.music.play(-1) #  ループ再生
+    pg.mixer.music.set_volume(0.25) #  音量調整
+    
+    #pg.mixer.init()  タイトル画面が出来たら対応箇所に付ける
+    #pg.mixer.music.load("fig/bgm.mp3")
+    #pg.mixer.music.play(-1)
+    shot = pg.mixer.Sound("fig/shot.mp3")
+    clear = pg.mixer.Sound("fig/clear.mp3")
+    gameover = pg.mixer.Sound("fig/gameover.mp3")
+    crash = pg.mixer.Sound("fig/crash.mp3")
+    
+    
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # スペースキー押下でBeamクラスのインスタンス生成
-                beam = Beam(bird)
-                beam_list.append(beam)            
+                beam = Beam(bird) #  ショット音
+                beam_list.append(beam) 
+                shot.play()           
         screen.blit(bg_img, [0, 0])
         if beam_list is not None:
             for bomb in bombs:
                 if bird.rct.colliderect(bomb.rct):
-                    # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
+                    # ゲームオーバー時に，こうかとん画像を切り替え，3秒間表示させる
+                    pg.mixer.music.pause() #  BGM止める
+                    gameover.play() #  GameOver音
                     bird.change_img(8, screen)
                     fonto = pg.font.Font(None, 80)
                     txt = fonto.render("Game Over", True, (255, 0, 0))
                     screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
                     pg.display.update()
-                    time.sleep(1)
+                    time.sleep(3)
                     return
 
             for i, bomb in enumerate(bombs):
                 for b, beam_obj in enumerate(beam_list):
                     if beam_obj.rct.colliderect(bomb.rct):
                         # 爆弾とビームが衝突した際にBeamインスタンス，Bombインスタンスを消滅
+                        crash.play() #  爆発音
                         explosion = Explosion(bomb.rct.center, 15)
                         explosion_list.append(explosion)
                         beam_list[b] = None
@@ -295,6 +316,8 @@ def main():
 
         #  独自の機能：ゲームクリアを表示
         if game_score == NUM_OF_BOMBS:
+            pg.mixer.music.pause() #  BGM止める
+            clear.play() #  クリア音
             game_clear.update(screen)
             pg.display.update()
             time.sleep(3)
