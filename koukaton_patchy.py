@@ -11,7 +11,6 @@ HEIGHT = 650  # ゲームウィンドウの高さ
 NUM_OF_BOMBS = 5
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-
 def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
     """
     オブジェクトが画面内or画面外を判定し，真理値タプルを返す関数
@@ -26,6 +25,37 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
     return yoko, tate
 
 
+class Background:
+    def __init__(self,image_paths:str,scale:int) ->list[str,str,str,str]:
+        """
+        引数1 背景画像のリスト
+        引数2 画像の拡大、縮小の値
+        for文でpathを指定して、空リストに加える
+        """
+        self.bg_imgs=[]
+        for path in image_paths:
+            self.img = pg.transform.rotozoom(pg.image.load(f"fig/{path}.jpg"), 0, scale)#パスを指定して画像surfaceを生成する
+            self.bg_imgs.append(self.img)#空リストに追加
+        self.bg_width=self.bg_imgs[0].get_width()#画像の横幅のピクセル数を求めている
+        # self.x=0
+    def update(self,tmr:int) -> int:
+        """
+        引数1 tmr(int型)
+        画像の大きさを求めて、ｘ座標を求める
+        """
+        total_width = self.bg_width*len(self.bg_imgs)#背景画像を横に連続で表示したときの合計の横幅を示している。
+        self.x = tmr%total_width
+        
+    def draw(self,screen:pg.Surface):
+        """
+        引数1 screen (pg.Surface型)
+        背景を描画する
+        """
+        for i in range(len(self.bg_imgs) + 1):  
+            img = self.bg_imgs[i % len(self.bg_imgs)]
+            screen.blit(img, (-self.x + i * self.bg_width, 0))
+            
+      
 class Bird:
     """
     ゲームキャラクター（こうかとん）に関するクラス
@@ -226,7 +256,8 @@ class Gameclear:
 def main():
     pg.display.set_caption("蒲田の逆襲")
     screen = pg.display.set_mode((WIDTH, HEIGHT))    
-    bg_img = pg.image.load("fig/pg_bg.jpg")
+    imgs_path=["honbu2","kenkyu2","kataken2","kougiD"]#背景画像の名前のリスト
+    scroller=Background(imgs_path,0.75)#バックグラウンド関数にリストと縮小値の0.75を入れている
     bird = Bird((300, 200))
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
     score = Score()
@@ -244,8 +275,9 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # スペースキー押下でBeamクラスのインスタンス生成
                 beam = Beam(bird)
-                beam_list.append(beam)            
-        screen.blit(bg_img, [0, 0])
+                beam_list.append(beam)  
+        scroller.update(tmr)
+        scroller.draw(screen)
         if beam_list is not None:
             for bomb in bombs:
                 if bird.rct.colliderect(bomb.rct):
@@ -303,7 +335,9 @@ def main():
         pg.display.update()
         tmr += 1
         clock.tick(50)
-
+        bird.update(key_lst,screen)
+        
+        
 
 if __name__ == "__main__":
     pg.init()
