@@ -160,7 +160,7 @@ class Score:
         """
         self.font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 30)
         score = 0
-        self.img = self.font.render(f"スコア：{score}", 0, (0, 0, 255))
+        self.img = self.font.render(f"Score：{score}", 0, (0, 0, 255))
         self.rct = self.img.get_rect()
         self.score = score
         self.rct.center = (100, HEIGHT-50)
@@ -171,7 +171,7 @@ class Score:
         スクリーンにblit
         """
         self.score = num
-        self.img = self.font.render(f"スコア：{num}", 0, (0, 0, 255))
+        self.img = self.font.render(f"Score：{num}", 0, (0, 0, 255))
         screen.blit(self.img, self.rct)
 
 
@@ -206,34 +206,161 @@ class Gameclear:
     独自の機能：ゲームクリアを表示させるクラス
     """
     def __init__(self):
-        self.gameover_sur = pg.Surface((WIDTH, HEIGHT))
+        self.gameclear_sur = pg.Surface((WIDTH, HEIGHT))
         self.font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 60)
-        self.cry = pg.image.load("fig/2.png") 
-        self.cry2 = pg.image.load("fig/5.png") 
-        self.gameover_txt = self.font.render("GAME CLEAR !!!",True,(255, 255, 0))
-        self.gameover_sur.set_alpha(130)
-        pg.draw.rect(self.gameover_sur, (0, 0, 0), pg.Rect(0, 0, WIDTH, HEIGHT))
+        self.koukaton = pg.image.load("fig/2.png") 
+        self.koukaton2 = pg.image.load("fig/5.png") 
+        self.gameclear_txt = self.font.render("GAME CLEAR !!!",True,(255, 255, 0))
+        self.gameclear_sur.set_alpha(130)
+        pg.draw.rect(self.gameclear_sur, (0, 0, 0), pg.Rect(0, 0, WIDTH, HEIGHT))
     
     def update(self, screen: pg.Surface):
         """
         ゲームクリアの文字とこうかとんを表示
         """
-        screen.blit(self.gameover_sur, [0, 0])
-        screen.blit(self.gameover_txt, [330, 300])
-        screen.blit(self.cry, [261, 290])
-        screen.blit(self.cry2, [763, 292])
+        screen.blit(self.gameclear_sur, [0, 0])
+        screen.blit(self.gameclear_txt, [330, 300])
+        screen.blit(self.koukaton, [261, 290])
+        screen.blit(self.koukaton2, [763, 292])
 
+class Startmenu:
+    """
+    スタート画面を表示
+    """
+    def __init__(self, screen_width, screen_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.startmenu = pg.image.load("fig/pg_bg.jpg")
+        self.font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 60)
+        self.kamata = pg.image.load("fig/kamato_0.png") 
+        self.patchy = pg.image.load("fig/patti_0.png")
+        self.title_text = self.font.render("蒲田の逆襲",True,(0, 0, 255))
+        self.startmenu.set_alpha(130)
+        self.title_text.set_alpha(150)
+        self.start_text = self.font.render("Press SPACE to Start", True, (0, 0, 255))
+        self.title_rect = self.title_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 - 50))
+        self.start_rect = self.start_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 50))
+        pg.mixer.init()
+        pg.mixer.music.load("fig/title.mp3") #  BGM
+        pg.mixer.music.play(-1) #  ループ再生
+        pg.mixer.music.set_volume(0.25) #  音量調整
+
+    
+    def run(self, screen: pg.Surface) -> bool:  # Trueを返したらゲーム開始
+        """
+        ゲームクリアの文字とこうかとんを表示
+        """
+        running = True
+        while running:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    return False  # ゲーム終了
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_SPACE:
+                        return True  # ゲーム開始
+
+            screen.blit(self.startmenu, [0, 0])
+            screen.blit(self.title_text, self.title_rect)
+            screen.blit(self.kamata, [100, 290])
+            screen.blit(self.patchy, [763, 292]) 
+            screen.blit(self.start_text, self.start_rect) 
+            pg.display.update()
+            time.sleep(0.01)
+        return False
+    
+
+class Recovery:
+    """
+    回復アイテムに関するクラス
+    """
+    imgs = [pg.image.load("fig/food_oden_tamago_0.png"), pg.image.load("fig/sweets_manjyu_0.png")]
+
+    def __init__(self):
+        self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.1)
+        self.rect = self.image.get_rect()
+        self.rect.center = random.randint(0, WIDTH), 0
+        self.vx, self.vy = 0, +6
+        self.bound = random.randint(50, HEIGHT//2)  # 停止位置
+        self.interval = random.randint(50, 300)  # インターバル
+
+    def update(self, screen: pg.Surface):
+        if self.rect.centery > self.bound:
+            self.vy = 0
+        self.rect.move_ip(self.vx, self.vy)
+        screen.blit(self.image, self.rect)
+
+
+class Life:
+    """
+    ライフを表示させるクラス
+    """
+    def __init__(self):
+        """
+        ライフのフォントや色の設定．文字列Surfaceの生成を行う
+        """
+        self.font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 30)
+        self.life = 5
+        self.img = pg.transform.rotozoom(pg.image.load("fig/heart.png"), 0, 0.04)
+        self.heart_width = self.img.get_width()
+        self.heart_height = self.img.get_height()
+
+        self.max_life = 5 # 最大ライフ数を定義（ゲーム内で増える可能性があれば変更）
+        self.padding_right = 20 # 画面右端からの余白
+        self.heart_spacing = 3 # ハート間のスペース
+        self.base_start_x = WIDTH - (self.heart_width * self.max_life + self.heart_spacing * (self.max_life - 1)) - self.padding_right
+        self.start_y = HEIGHT - 50
+        self.start_x = self.base_start_x - 5 
+        self.start_y = self.start_y - 5
+
+    def update(self, num: int, screen: pg.Surface):
+        """
+        現在のライフを表示させる文字列Surfaceの生成
+        スクリーンにblit
+        """
+        self.life = num
+        clear_rect = pg.Rect(self.start_x, self.start_y, self.heart_width * 3 + 20, self.heart_height) # 最大ライフ数分の幅
+        screen.blit(pg.image.load("fig/pg_bg.jpg"), clear_rect, area=clear_rect) # 背景画像で上書き
+        for i in range(self.life):
+            # 各ハートの表示位置を計算
+            x = (WIDTH - self.padding_right) - ((self.life - i) * (self.heart_width + self.heart_spacing)) + self.heart_spacing # 右端から逆算
+            y = self.start_y
+            screen.blit(self.img, (x, y))
+        
 
 def main():
     pg.display.set_caption("蒲田の逆襲")
     screen = pg.display.set_mode((WIDTH, HEIGHT))    
     bg_img = pg.image.load("fig/pg_bg.jpg")
-    bird = Bird((300, 200))
-    bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
-    score = Score()
+    start_menu = Startmenu(WIDTH, HEIGHT)
+    if not start_menu.run(screen):
+        return
+    bird = None
+    bombs = []
+    score = None
+    life = None
     game_score = 0
     beam_list = []
     explosion_list = []
+    recovery_items = []
+    tmr = 0
+    invincible = False
+    invincible_timer = 0
+
+    # リスタート処理
+    def reset_game():
+        nonlocal bird, bombs, score, life, game_score, beam_list, explosion_list, recovery_items, tmr, invincible, invincible_timer
+        bird = Bird((300, 200))
+        bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
+        score = Score()
+        life = Life()
+        game_score = 0
+        beam_list = []
+        explosion_list = []
+        recovery_items = [] 
+        invincible = False  # 無敵状態かどうか
+        invincible_timer = 0  # 無敵時間のカウント
+    reset_game()
+    
     game_clear = Gameclear()
     clock = pg.time.Clock()
     beam = None                                 
@@ -241,13 +368,8 @@ def main():
     
     
     pg.mixer.init()
-    pg.mixer.music.load("fig/title.mp3") #  BGM
-    pg.mixer.music.play(-1) #  ループ再生
-    pg.mixer.music.set_volume(0.25) #  音量調整
-    
-    #pg.mixer.init()  タイトル画面が出来たら対応箇所に付ける
-    #pg.mixer.music.load("fig/bgm.mp3")
-    #pg.mixer.music.play(-1)
+    pg.mixer.music.load("fig/bgm.mp3")
+    pg.mixer.music.play(-1)
     shot = pg.mixer.Sound("fig/shot.mp3")
     clear = pg.mixer.Sound("fig/clear.mp3")
     gameover = pg.mixer.Sound("fig/gameover.mp3")
@@ -266,17 +388,40 @@ def main():
         screen.blit(bg_img, [0, 0])
         if beam_list is not None:
             for bomb in bombs:
-                if bird.rct.colliderect(bomb.rct):
-                    # ゲームオーバー時に，こうかとん画像を切り替え，3秒間表示させる
-                    pg.mixer.music.pause() #  BGM止める
-                    gameover.play() #  GameOver音
-                    bird.change_img(8, screen)
-                    fonto = pg.font.Font(None, 80)
-                    txt = fonto.render("Game Over", True, (255, 0, 0))
-                    screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                    pg.display.update()
-                    time.sleep(3)
-                    return
+                if beam_list is not None:
+                    if not invincible and bird.rct.colliderect(bomb.rct):  # 爆弾とこうかとんの衝突判定
+                        life.life -= 1
+                        invincible = True
+                        invincible_timer = 50  # 無敵時間
+                        
+            if life.life <= 0:
+                # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
+                bird.change_img(8, screen)
+                gameover_surface = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
+                gameover_surface.fill((0, 0, 0, 150))
+                fonto = pg.font.Font(None, 120)
+                txt = fonto.render("GAME OVER", True, (255, 255, 255))
+                
+                pg.mixer.music.pause() #  BGM止める
+                gameover.play() #  ゲームオーバー音
+                
+                # リトライボタンのテキストと矩形を作成
+                retry_font = pg.font.Font(None, 60) # ボタン用のフォントサイズ
+                retry_text = retry_font.render("RETRY", True, (255, 255, 255)) # 白い文字
+                retry_rect = retry_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100)) # Game Overの下に配置
+                screen.blit(gameover_surface, (0, 0)) # 半透明の黒い背景を画面全体に描画
+                screen.blit(txt, [WIDTH//2 - txt.get_width()//2, HEIGHT//2 - txt.get_height()//2])
+                screen.blit(retry_text, retry_rect)
+                pg.display.update()
+                while True: # 新しいループに入る
+                    for event in pg.event.get():
+                        if event.type == pg.QUIT:
+                            return
+                        if event.type == pg.MOUSEBUTTONDOWN: # マウスクリックイベント
+                            if retry_rect.collidepoint(event.pos): # クリック位置がリトライボタン内か判定
+                                reset_game() # ゲームをリセット
+                                return
+                    time.sleep(0.01)
 
             for i, bomb in enumerate(bombs):
                 for b, beam_obj in enumerate(beam_list):
@@ -293,8 +438,7 @@ def main():
                         game_score += 1
                         pg.display.update()
                         break 
-                    
-        
+
         # 画面の範囲外に出たらリストから削除する
         for beam_obj in beam_list:
             beam_obj.update(screen)
@@ -311,10 +455,11 @@ def main():
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
         score.update(game_score, screen)
+        life.update(life.life, screen)
         for bomb in bombs:
             bomb.update(screen)
-
-        #  独自の機能：ゲームクリアを表示
+        
+        #  ゲームクリアを表示
         if game_score == NUM_OF_BOMBS:
             pg.mixer.music.pause() #  BGM止める
             clear.play() #  クリア音
@@ -322,6 +467,24 @@ def main():
             pg.display.update()
             time.sleep(3)
             return
+        
+        # 回復アイテム
+        if tmr % 400 == 0: 
+            recovery_items.append(Recovery())
+
+        new_recovery_items = []
+        for recovery in recovery_items:
+            recovery.update(screen) # 描画のためにscreenを渡す
+            if bird.rct.colliderect(recovery.rect):
+                life.life += 1
+            else:
+                new_recovery_items.append(recovery) # 衝突がない場合は保持
+        recovery_items = new_recovery_items    
+
+        if invincible:
+            invincible_timer -= 1
+            if invincible_timer <= 0:
+                invincible = False
 
         pg.display.update()
         tmr += 1
@@ -330,6 +493,7 @@ def main():
 
 if __name__ == "__main__":
     pg.init()
-    main()
+    while True:
+        main()
     pg.quit()
     sys.exit()
