@@ -369,6 +369,8 @@ class Boss:
         引数２：プレイヤー１
         引数３：プレイヤー２
         """
+        if bird is None:
+            bird = pat
         if self.hp <= 0:
             return True
         screen.blit(self.img, self.rct)
@@ -386,11 +388,11 @@ class Boss:
                 bomb2s.append(Bomb2((0, 255, 255), [60, 60], [780, 250], bird, bird, 1, 5, 0, -30))
                 bomb2s.append(Bomb2((0, 255, 255), [60, 60], [780, 250], bird, bird, 1, 5, 0, 60))
                 bomb2s.append(Bomb2((0, 255, 255), [60, 60], [780, 250], bird, bird, 1, 5, 0, -60))
-                self.kao_part(0,1,[self.centerx, self.centery], screen, bird, pat)
+                self.kao_part(0,1,[self.centerx, self.centery], screen, bird, bird)
             elif self.motion_life % 50 >= 15 and self.motion_life % 50 <= 25:
-                self.kao_part(0,1,[self.centerx, self.centery], screen, bird, pat)
+                self.kao_part(0,1,[self.centerx, self.centery], screen, bird, bird)
             else:
-                self.kao_part(0,0,[self.centerx, self.centery], screen, bird, pat)
+                self.kao_part(0,0,[self.centerx, self.centery], screen, bird, bird)
             if self.motion_life > 50:
                 self.motion_life = 0
         # 伸びるモーション
@@ -414,7 +416,7 @@ class Boss:
                     ataris.append(Atari(350,300+self.nobiy,[850,300-self.nobiy/2]))
                 for nobi in self.nobis:
                     nobi.update(screen)
-                self.kao_part(1,2,[self.nobix, self.centery - self.nobiy], screen, bird, pat)
+                self.kao_part(1,2,[self.nobix, self.centery - self.nobiy], screen, bird, bird)
             # 後半
             elif self.motion_life > 100 and self.motion_life < 108:
                 if self.count == 1:
@@ -430,7 +432,7 @@ class Boss:
                     ataris.append(Atari(350,300,[self.nobix,HEIGHT-self.nobiy-170]))
                 for nobi in self.nobis:
                     nobi.update(screen)
-                self.kao_part(1,2,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, pat, True)
+                self.kao_part(1,2,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, bird, True)
             # 止まる
             elif self.motion_life >= 108 and self.motion_life <= 400:
                 for nobi in self.nobis:
@@ -439,11 +441,11 @@ class Boss:
                     bomb2s.append(Bomb2((0, 255, 255), [60, 60], [self.nobix + 70, self.nobis[-1].rct.centery], bird, bird, 1, 5, 0, 0))
                     bomb2s.append(Bomb2((0, 255, 255), [60, 60], [self.nobix + 70, self.nobis[-1].rct.centery], bird, bird, 1, 5, 0, 45))
                     bomb2s.append(Bomb2((0, 255, 255), [60, 60], [self.nobix + 70, self.nobis[-1].rct.centery], bird, bird, 1, 5, 0, -45))
-                    self.kao_part(0,1,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, pat, True)
+                    self.kao_part(0,1,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, bird, True)
                 elif self.motion_life % 50 >= 15 and self.motion_life % 50 <= 25:
-                    self.kao_part(0,1,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, pat, True)
+                    self.kao_part(0,1,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, bird, True)
                 else:
-                    self.kao_part(0,0,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, pat, True)
+                    self.kao_part(0,0,[self.nobix + 70, self.nobis[-1].rct.centery + 50], screen, bird, bird, True)
             # 縮まる
             elif self.motion_life > 400:
                 ataris.clear()
@@ -459,18 +461,18 @@ class Boss:
                         self.nobix = self.centerx
                         self.nobiy = 0
                         self.count = 0
-                    self.kao_part(1,2,[self.centerx, self.centery], screen, bird, pat)
+                    self.kao_part(1,2,[self.centerx, self.centery], screen, bird, bird)
                 else:
                     for nobi in self.nobis:
                         nobi.update(screen)
                     if self.nobis[-1].hanten == True:
-                        self.kao_part(1,2,[self.nobis[-1].rct.centerx + 70, self.nobis[-1].rct.centery + 50], screen, bird, pat, True)
+                        self.kao_part(1,2,[self.nobis[-1].rct.centerx + 70, self.nobis[-1].rct.centery + 50], screen, bird, bird, True)
                     else:
-                        self.kao_part(1,2,[self.centerx, self.nobis[-1].rct.centery-30], screen, bird, pat)
+                        self.kao_part(1,2,[self.centerx, self.nobis[-1].rct.centery-30], screen, bird, bird)
             else:
                 for nobi in self.nobis:
                     nobi.update(screen)
-                self.kao_part(1,2,[self.nobix, self.centery - self.nobiy], screen, bird, pat)
+                self.kao_part(1,2,[self.nobix, self.centery - self.nobiy], screen, bird, bird)
         elif self.motion == "oti":
             if self.motion_life <= 10:
                 self.vy = -10
@@ -493,7 +495,7 @@ class Boss:
                         explosion_list.append(Explosion((600 + i*100 + random.randint(0,100),random.randint(575, 600)), 5))
             else:
                 self.vy = -10
-            self.kao_part(1,2,[self.centerx,self.centery+self.vz], screen, bird, pat)
+            self.kao_part(1,2,[self.centerx,self.centery+self.vz], screen, bird, bird)
             self.vz += self.vy
             self.rct.move_ip(0, self.vy)
             for atari in ataris:
@@ -708,6 +710,8 @@ class Bomb2:
         引数11 ay:y方向
         引数12 time:効果時間
         """
+        if bird == None:
+            bird = pat
         self.size = size
         self.zukei = zukei
         self.speed = speed
@@ -1177,7 +1181,8 @@ def main():
             pg.draw.rect(maku_img, "#000000", (0,0,WIDTH,HEIGHT))
             font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 40)
             txt = font.render(f"蒲田キャンパスにカチコミだ！！！", 0, (255, 255, 255))
-            bird.rct.center = (200, 200) # 工科トン座標変更
+            if bird != None:    
+                bird.rct.center = (200, 200) # 工科トン座標変更
             phase = 2
         if phase == 2:
             screen.blit(maku_img, (0,0))
