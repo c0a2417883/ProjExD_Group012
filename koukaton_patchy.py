@@ -354,8 +354,104 @@ class Life:
             # 各ハートの表示位置を計算
             x = (WIDTH - self.padding_right) - ((self.life - i) * (self.heart_width + self.heart_spacing)) + self.heart_spacing # 右端から逆算
             y = self.start_y
-            screen.blit(self.img, (x, y))
-        
+            screen.blit(self.img, (x, y))    
+
+class Pachi:
+    """
+    二人目のキャラクター “pachi” クラス
+    W: ジャンプ, A: 左移動, D: 右移動
+    ジャンプ: スーパーマリオ風の重力処理付き
+    Space: ビーム攻撃用の PachiBeam クラスを利用
+    """
+    def __init__(self, xy: tuple[int,int]):
+        # 画像の読み込み: 立ちポーズと歩きポーズ2種
+        self.img_stand_right = pg.transform.rotozoom(pg.image.load("fig/pachi_stand.png"), 0, 0.9)
+        self.img_walk1_right = pg.transform.rotozoom(pg.image.load("fig/pachi_walk1.png"), 0, 0.9)
+        self.img_walk2_right = pg.transform.rotozoom(pg.image.load("fig/pachi_walk2.png"), 0, 0.9)
+        # 左向きイメージを生成
+        self.img_stand_left  = pg.transform.flip(self.img_stand_right, True, False)
+        self.img_walk1_left  = pg.transform.flip(self.img_walk1_right, True, False)
+        self.img_walk2_left  = pg.transform.flip(self.img_walk2_right, True, False)
+        # 初期状態
+        self.img           = self.img_stand_right
+        self.walk_toggle   = False  # 歩行アニメ切替フラグ
+        self.walk_timer    = 0      # フレームカウンタ
+        self.facing_right  = True
+        self.dire          = (5, 0)
+        # 位置・重力関連
+        self.rct           = self.img.get_rect(center=xy)
+        self.vy            = 0
+        self.on_ground     = True
+
+    def update(self, key_lst: list[bool], screen: pg.Surface):
+        dx = 0
+        # 左右移動
+        if key_lst[pg.K_a]:
+            dx = -5
+            self.facing_right = False
+        elif key_lst[pg.K_d]:
+            dx = +5
+            self.facing_right = True
+        # 歩行アニメ: 1秒ごとに切り替え (50fps想定)
+        if dx != 0 and self.on_ground:
+            self.walk_timer += 1
+            if self.walk_timer >= 10:
+                self.walk_toggle = not self.walk_toggle
+                self.walk_timer = 0
+            if self.facing_right:
+                self.img = self.img_walk1_right if self.walk_toggle else self.img_walk2_right
+            else:
+                self.img = self.img_walk1_left  if self.walk_toggle else self.img_walk2_left
+        # 停止中の立ちポーズ
+        elif self.on_ground:
+            self.img = self.img_stand_right if self.facing_right else self.img_stand_left
+        # ジャンプ開始
+        if key_lst[pg.K_w] and self.on_ground:
+            self.vy        = -15
+            self.on_ground = False
+        # 重力適用・移動
+        self.vy += 1
+        self.rct.y += self.vy
+        self.rct.x += dx
+        # 地面(底辺)でリセット
+        if self.rct.bottom >= 480:
+            self.rct.bottom = 480
+            self.vy          = 0
+            self.on_ground   = True
+        # 画面端制限
+        self.rct.clamp_ip(pg.Rect(0, 0, WIDTH, HEIGHT))
+        # 方向ベクトル更新
+        if dx != 0:
+            self.dire = (dx, 0)
+        # 描画
+        screen.blit(self.img, self.rct)
+
+class PachiBeam(Beam):
+    """
+    Pachi用ビーム: 生成位置をPachiの向きに合わせる
+    """
+    def __init__(self, pachi: Pachi):
+        # 画像・向き
+        self.img = pg.image.load("fig/beam.png")
+        self.rct = self.img.get_rect()
+        # 速度ベクトルはPachi.dire
+        self.vx, self.vy = pachi.dire
+        # 回転角度計算
+        tan = math.atan2(-self.vy, self.vx)
+        angle = math.degrees(tan)
+        self.img = pg.transform.rotozoom(self.img, angle, 1.0)
+        # 発射位置: キャラ中心から向きに応じてオフセット
+        offset_x = (pachi.rct.width  * (self.vx / 5))
+        offset_y = (pachi.rct.height * (self.vy / 5))
+        self.rct.centerx = pachi.rct.centerx + offset_x
+        self.rct.centery = pachi.rct.centery + offset_y
+
+    def update(self, screen: pg.Surface):
+        # 画面内なら移動と描画
+        if check_bound(self.rct) == (True, True):
+            self.rct.move_ip(self.vx, self.vy)
+            screen.blit(self.img, self.rct)
+
 
 def main():
     pg.display.set_caption("蒲田の逆襲")
@@ -369,6 +465,11 @@ def main():
     bombs = []
     score = None
     life = None
+    bg_img = pg.image.load("fig/pg_bg.jpg")
+    bird = Bird((300, 200))
+    pachi = Pachi((300, 480))
+    bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
+    score = Score()
     game_score = 0
     beam_list = []
     explosion_list = []
@@ -411,9 +512,15 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                # RETURNキー押下でBeamクラスのインスタンス生成
+                beam = Beam(bird)
+                beam_list.append(beam)
+                shot.play()        
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 # スペースキー押下でBeamクラスのインスタンス生成
-                beam = Beam(bird)
+                beam = PachiBeam(pachi)
+                beam_list.append(PachiBeam(pachi))
                 beam_list.append(beam)
                 shot.play()
         scroller.update(tmr)
@@ -422,7 +529,7 @@ def main():
         if beam_list is not None:
             for bomb in bombs:
                 if beam_list is not None:
-                    if not invincible and bird.rct.colliderect(bomb.rct):  # 爆弾とこうかとんの衝突判定
+                    if not invincible and (bird.rct.colliderect(bomb.rct) or pachi.rct.colliderect(bomb.rct)):  # 爆弾とこうかとん/ぱっちぃの衝突判定
                         life.life -= 1
                         invincible = True
                         invincible_timer = 50  # 無敵時間
@@ -430,6 +537,9 @@ def main():
             if life.life <= 0:
                 # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 bird.change_img(8, screen)
+                base = pachi.img_stand_right if pachi.facing_right else pachi.img_stand_left  # Pachi倒れ絵: 立ちポーズを90度回転
+                fallen = pg.transform.rotozoom(base, 90, 1.0)
+                screen.blit(fallen, pachi.rct)
                 gameover_surface = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
                 gameover_surface.fill((0, 0, 0, 150))
                 fonto = pg.font.Font(None, 120)
@@ -487,6 +597,7 @@ def main():
 
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
+        pachi.update(key_lst, screen)
         score.update(game_score, screen)
         life.update(life.life, screen)
         for bomb in bombs:
