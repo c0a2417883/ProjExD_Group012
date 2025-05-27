@@ -6,7 +6,7 @@ import time
 import pygame as pg
 
 
-
+ritorai = 0
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
 NUM_OF_BOMBS = 0
@@ -301,7 +301,7 @@ class Boss:
         """
         global ataris
         global bomb2s
-        self.hp = 200
+        self.hp = 10
         self.hidan_count = 0
         self.vx = 0
         self.vz = 0
@@ -612,7 +612,7 @@ class Boss2:
         ボス本体と顔パーツを生成
         """
         global ataris
-        self.hp = 200
+        self.hp = 10
         self.hidan_count = 0
         global bomb2s
         global zakos
@@ -1034,10 +1034,12 @@ class Startmenu:
         """
         ゲームクリアの文字とこうかとんを表示
         """
+        global ritorai
         running = True
         while running:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
+                    ritorai = 1
                     return False  # ゲーム終了
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_SPACE:
@@ -1062,9 +1064,9 @@ class Recovery:
     def __init__(self):
         self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.1)
         self.rect = self.image.get_rect()
-        self.rect.center = random.randint(0, WIDTH), 0
+        self.rect.center = random.randint(0, WIDTH - 300), 0
         self.vx, self.vy = 0, +6
-        self.bound = random.randint(50, HEIGHT//2)  # 停止位置
+        self.bound = random.randint(50, 350)  # 停止位置
         self.interval = random.randint(50, 300)  # インターバル
 
     def update(self, screen: pg.Surface):
@@ -1102,8 +1104,8 @@ class Life:
         スクリーンにblit
         """
         self.life = num
-        clear_rect = pg.Rect(self.start_x, self.start_y, self.heart_width * 3 + 20, self.heart_height) # 最大ライフ数分の幅
-        screen.blit(pg.image.load("fig/pg_bg.jpg"), clear_rect, area=clear_rect) # 背景画像で上書き
+        # clear_rect = pg.Rect(self.start_x, self.start_y, self.heart_width * 3 + 20, self.heart_height) # 最大ライフ数分の幅
+        # screen.blit(pg.image.load("fig/pg_bg.jpg"), clear_rect, area=clear_rect) # 背景画像で上書き
         for i in range(self.life):
             # 各ハートの表示位置を計算
             x = (WIDTH - self.padding_right) - ((self.life - i) * (self.heart_width + self.heart_spacing)) + self.heart_spacing # 右端から逆算
@@ -1208,6 +1210,7 @@ class PachiBeam(Beam):
 
 
 def main():
+    global ritorai
     pg.display.set_caption("蒲田の逆襲")
     screen = pg.display.set_mode((WIDTH, HEIGHT))    
     imgs_path=["honbu2","kenkyu2","kataken2","kougiD"]#背景画像の名前のリスト
@@ -1235,7 +1238,7 @@ def main():
     score = Score()
     game_score = 0
     beam_list = []
-    explosion_list = []
+    global explosion_list
     recovery_items = []
     tmr = 0
     invincible = False
@@ -1243,14 +1246,14 @@ def main():
 
     # リスタート処理
     def reset_game():
-        nonlocal bird, bombs, score, life, game_score, beam_list, explosion_list, recovery_items, tmr, invincible, invincible_timer
+        nonlocal bird, bombs, score, life, game_score, beam_list, recovery_items, tmr, invincible, invincible_timer
         bird = Bird((300, 200))
         bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
         score = Score()
         life = Life()
         game_score = 0
         beam_list = []
-        explosion_list = []
+        global explosion_list
         recovery_items = [] 
         invincible = False  # 無敵状態かどうか
         invincible_timer = 0  # 無敵時間のカウント
@@ -1296,6 +1299,7 @@ def main():
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
+                ritorai = 1
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
                 # RETURNキー押下でBeamクラスのインスタンス生成
@@ -1344,6 +1348,7 @@ def main():
                 while True: # 新しいループに入る
                     for event in pg.event.get():
                         if event.type == pg.QUIT:
+                            ritorai = 1
                             return
                         if event.type == pg.MOUSEBUTTONDOWN: # マウスクリックイベント
                             if retry_rect.collidepoint(event.pos): # クリック位置がリトライボタン内か判定
@@ -1373,6 +1378,7 @@ def main():
                         zako.hidan()
                         beam_list[b] = None
                         beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
+                        game_score += 1
             # ボスダメージ判定
             if beam_list !=[]:
                 for atari in ataris:
@@ -1381,12 +1387,14 @@ def main():
                             boss.hidan()
                             beam_list[b] = None
                             beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
+                            game_score += 1
 
 
         # 被弾判定
         for bomb2 in bomb2s:
-            if bird.rct.colliderect(bomb2.rct):
-                # # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
+            if not invincible and (bird.rct.colliderect(bomb2.rct) or pachi.rct.colliderect(bomb2.rct)):
+                # # ゲームオーバ
+                # ー時に，こうかとん画像を切り替え，1秒間表示させる
                 # bird.change_img(8, screen)
                 # fonto = pg.font.Font(None, 80)
                 # txt = fonto.render("Game Over", True, (255, 0, 0))
@@ -1396,10 +1404,10 @@ def main():
                 # return
                 life.life -= 1
                 invincible = True
-                invincible_timer = 400  # 無敵時間
+                invincible_timer = 50  # 無敵時間
         # ボス衝突
         for atari in ataris:
-            if bird.rct.colliderect(atari.rct):
+            if not invincible and (bird.rct.colliderect(atari.rct) or pachi.rct.colliderect(atari.rct)):
                 # # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 # bird.change_img(8, screen)
                 # fonto = pg.font.Font(None, 80)
@@ -1410,10 +1418,10 @@ def main():
                 # return
                 life.life -= 1
                 invincible = True
-                invincible_timer = 400  # 無敵時間
+                invincible_timer = 50  # 無敵時間
         # 雑魚衝突    
         for zako in zakos:
-            if bird.rct.colliderect(zako.rct):
+            if not invincible and (bird.rct.colliderect(zako.rct) or pachi.rct.colliderect(zako.rct)):
                 # # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 # bird.change_img(8, screen)
                 # fonto = pg.font.Font(None, 80)
@@ -1424,7 +1432,7 @@ def main():
                 # return
                 life.life -= 1
                 invincible = True
-                invincible_timer = 400  # 無敵時間
+                invincible_timer = 50  # 無敵時間
         
         if boss != None: # ボス
             if boss.update(screen, bird, bird):
@@ -1478,7 +1486,7 @@ def main():
             bomb.update(screen)
         
         #  ゲームクリアを表示
-        if phase == 9:
+        if phase == 10:
             pg.mixer.music.pause() #  BGM止める
             clear.play() #  クリア音
             game_clear.update(screen)
@@ -1584,7 +1592,8 @@ def main():
 
 if __name__ == "__main__":
     pg.init()
-    # while True:
-    main()
-    pg.quit()
-    sys.exit()
+    while True:
+        main()
+        if ritorai == 1:    
+            pg.quit()
+            sys.exit()
