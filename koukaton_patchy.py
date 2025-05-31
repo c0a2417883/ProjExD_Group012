@@ -1619,7 +1619,7 @@ def main():
         #     time.sleep(3)
         #     return
         
-        if phase == 1 and zako_count >= 5:
+        if phase == 1 and zako_count >= 10:
             zakos = []
             # beam.list = []
             bomb2s = []
