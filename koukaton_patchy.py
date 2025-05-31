@@ -33,12 +33,13 @@ def check_bound(obj_rct: pg.Rect, x=0,y=0) -> tuple[bool, bool]:
 
 
 class Background:
-    def __init__(self,image_paths:str,scale:int) ->list[str,str,str,str]:
+    def __init__(self,image_paths:str,scale:int, scroll = True) ->list[str,str,str,str]:
         """
         引数1 背景画像のリスト
         引数2 画像の拡大、縮小の値
         for文でpathを指定して、空リストに加える
         """
+        self.scroll = scroll
         self.bg_imgs=[]
         for path in image_paths:
             self.img = pg.transform.rotozoom(pg.image.load(f"fig/{path}.jpg"), 0, scale)#パスを指定して画像surfaceを生成する
@@ -58,9 +59,15 @@ class Background:
         引数1 screen (pg.Surface型)
         背景を描画する
         """
-        for i in range(len(self.bg_imgs) + 1):  
-            img = self.bg_imgs[i % len(self.bg_imgs)]
-            screen.blit(img, (-self.x + i * self.bg_width, 0))
+        if self.scroll:
+            for i in range(len(self.bg_imgs) + 1):  
+                img = self.bg_imgs[i % len(self.bg_imgs)]
+                screen.blit(img, (-self.x + i * self.bg_width, 0))
+        else:
+            for i in range(len(self.bg_imgs) + 1):  
+                img = self.bg_imgs[i % len(self.bg_imgs)]
+                screen.blit(img, (i * self.bg_width, 0))
+        
             
       
 class Bird:
@@ -77,13 +84,13 @@ class Bird:
     img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん（右向き）
     imgs = {  # 0度から反時計回りに定義
         (+5, 0): img,  # 右
-        (+5, -5): pg.transform.rotozoom(img, 45, 0.9),  # 右上
-        (0, -5): pg.transform.rotozoom(img, 90, 0.9),  # 上
-        (-5, -5): pg.transform.rotozoom(img0, -45, 0.9),  # 左上
-        (-5, 0): img0,  # 左
-        (-5, +5): pg.transform.rotozoom(img0, 45, 0.9),  # 左下
-        (0, +5): pg.transform.rotozoom(img, -90, 0.9),  # 下
-        (+5, +5): pg.transform.rotozoom(img, -45, 0.9),  # 右下
+        # (+5, -5): pg.transform.rotozoom(img, 45, 0.9),  # 右上
+        # (0, -5): pg.transform.rotozoom(img, 90, 0.9),  # 上
+        # (-5, -5): pg.transform.rotozoom(img0, -45, 0.9),  # 左上
+        # (-5, 0): img0,  # 左
+        # (-5, +5): pg.transform.rotozoom(img0, 45, 0.9),  # 左下
+        # (0, +5): pg.transform.rotozoom(img, -90, 0.9),  # 下
+        # (+5, +5): pg.transform.rotozoom(img, -45, 0.9),  # 右下
     }
 
     def __init__(self, xy: tuple[int, int]):
@@ -91,10 +98,12 @@ class Bird:
         こうかとん画像Surfaceを生成する
         引数 xy：こうかとん画像の初期位置座標タプル
         """
-        self.img = __class__.imgs[(+5, 0)]
+        self.img0 = __class__.imgs[(+5, 0)]
+        self.img0_lap = pg.transform.laplacian(self.img)
         self.rct: pg.Rect = self.img.get_rect()
         self.rct.center = xy
         self.dire = (+5, 0) # 初期方向（右向き）
+        self.hidan_count = 0
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -127,7 +136,16 @@ class Bird:
         # if not (sum_mv[0] == 0 and sum_mv[1] == 0):
         #     self.dire = tuple(sum_mv)
         #     self.img = __class__.imgs[tuple(sum_mv)]
+        if self.hidan_count > 0:
+            self.hidan_count -= 1
+        if self.hidan_count % 5 == 0:
+            self.img = self.img0
+        else:
+            self.img = self.img0_lap
         screen.blit(self.img, self.rct)
+
+    def hidan(self, time):
+        self.hidan_count = time
 
 
 class Beam:
@@ -159,35 +177,35 @@ class Beam:
             screen.blit(self.img, self.rct)    
 
 
-class Bomb:
-    """
-    爆弾に関するクラス
-    """
-    def __init__(self, color: tuple[int, int, int], rad: int):
-        """
-        引数に基づき爆弾円Surfaceを生成する
-        引数1 color：爆弾円の色タプル
-        引数2 rad：爆弾円の半径
-        """
-        self.img = pg.Surface((2*rad, 2*rad))
-        pg.draw.circle(self.img, color, (rad, rad), rad)
-        self.img.set_colorkey((0, 0, 0))
-        self.rct = self.img.get_rect()
-        self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
-        self.vx, self.vy = +5, +5
+# class Bomb:
+#     """
+#     爆弾に関するクラス
+#     """
+#     def __init__(self, color: tuple[int, int, int], rad: int):
+#         """
+#         引数に基づき爆弾円Surfaceを生成する
+#         引数1 color：爆弾円の色タプル
+#         引数2 rad：爆弾円の半径
+#         """
+#         self.img = pg.Surface((2*rad, 2*rad))
+#         pg.draw.circle(self.img, color, (rad, rad), rad)
+#         self.img.set_colorkey((0, 0, 0))
+#         self.rct = self.img.get_rect()
+#         self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
+#         self.vx, self.vy = +5, +5
 
-    def update(self, screen: pg.Surface):
-        """
-        爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
-        """
-        yoko, tate = check_bound(self.rct)
-        if not yoko:
-            self.vx *= -1
-        if not tate:
-            self.vy *= -1
-        self.rct.move_ip(self.vx, self.vy)
-        screen.blit(self.img, self.rct)
+#     def update(self, screen: pg.Surface):
+#         """
+#         爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
+#         引数 screen：画面Surface
+#         """
+#         yoko, tate = check_bound(self.rct)
+#         if not yoko:
+#             self.vx *= -1
+#         if not tate:
+#             self.vy *= -1
+#         self.rct.move_ip(self.vx, self.vy)
+#         screen.blit(self.img, self.rct)
 
 
 class Zako:
@@ -247,6 +265,7 @@ class Zako2:
         引数１、２：ｘ座標、ｙ座標
         引数３：移動するか
         """
+        self.shot = pg.mixer.Sound("fig/kyuuu.mp3")
         global bomb2s
         self.idou = idou
         self.img = pg.image.load("fig/alien1.png")
@@ -268,6 +287,7 @@ class Zako2:
         if self.life == self.interval:
             self.vx, self.vy = 0,0
         elif self.life >= self.interval +25:
+            self.shot.play()
             bomb2s.append(Bomb2((255, 255, 255), [WIDTH*2, 30], [self.rct.centerx, self.rct.centery], bird, pat, 2, 0, 1, 0, 0, 0, 10))
             bomb2s.append(Bomb2((255, 255, 255), [30, HEIGHT*2], [self.rct.centerx, self.rct.centery], bird, pat, 2, 0, 1, 90, 0, 0, 10))
             explosion_list.append(Explosion((self.rct.centerx,self.rct.centery),15))
@@ -299,9 +319,10 @@ class Boss:
         """
         ボス本体と顔パーツを生成
         """
+        self.crash = pg.mixer.Sound("fig/crash.mp3")
         global ataris
         global bomb2s
-        self.hp = 10
+        self.hp = 200
         self.hidan_count = 0
         self.vx = 0
         self.vz = 0
@@ -523,6 +544,7 @@ class Boss:
                             bomb2s.append(Bomb2((0,0,0), [20,200], [i*150,-50],bird,bird,3,8,1,-90))
                             bomb2s.append(Bomb2((0,0,0), [20,500], [i*150+ 75,-400],bird,bird,3,8,1,-90))
                             bomb2s.append(Bomb2((0,0,0), [20,1000], [i*150,-750],bird,bird,3,8,1,-90))
+                    self.crash.play()
                     for i in range(5):
                         explosion_list.append(Explosion((600 + i*100 + random.randint(0,100),random.randint(575, 600)), 5))
             else:
@@ -612,7 +634,7 @@ class Boss2:
         ボス本体と顔パーツを生成
         """
         global ataris
-        self.hp = 10
+        self.hp = 200
         self.hidan_count = 0
         global bomb2s
         global zakos
@@ -898,6 +920,7 @@ class Gekiha:
         self.n = n
         global explosion_list
         self.life = 0
+        self.crash = pg.mixer.Sound("fig/crash.mp3")
 
         if self.n == 0:
             self.centerx = 780 # 眉間座標ｘ
@@ -949,6 +972,8 @@ class Gekiha:
             self.eye_toji_rct.move_ip(0,2)
             self.kuti2_rct.move_ip(0,2)
             if self.life % 5 == 0:
+                if self.life < 100:
+                    self.crash.play()
                 for i in range(10):
                     x = random.randint(self.rct.centerx-300, self.rct.centerx+300)
                     y = random.randint(self.rct.centery-300, self.rct.centery+200)
@@ -960,6 +985,7 @@ class Gekiha:
                 return True
         elif self.n == 1:
             if self.life < 10:
+                self.crash.play()
                 for i in range(20):
                     x = random.randint(int(WIDTH/2),WIDTH)
                     y = random.randint(0, HEIGHT)
@@ -1064,9 +1090,9 @@ class Recovery:
     def __init__(self):
         self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.1)
         self.rect = self.image.get_rect()
-        self.rect.center = random.randint(0, WIDTH - 300), 0
+        self.rect.center = random.randint(200, WIDTH - 500), 0
         self.vx, self.vy = 0, +6
-        self.bound = random.randint(50, 350)  # 停止位置
+        self.bound = random.randint(50, 500)  # 停止位置
         self.interval = random.randint(50, 300)  # インターバル
 
     def update(self, screen: pg.Surface):
@@ -1104,6 +1130,8 @@ class Life:
         スクリーンにblit
         """
         self.life = num
+        if self.life > self.max_life:
+            self.life = self.max_life
         # clear_rect = pg.Rect(self.start_x, self.start_y, self.heart_width * 3 + 20, self.heart_height) # 最大ライフ数分の幅
         # screen.blit(pg.image.load("fig/pg_bg.jpg"), clear_rect, area=clear_rect) # 背景画像で上書き
         for i in range(self.life):
@@ -1124,10 +1152,13 @@ class Pachi:
         self.img_stand_right = pg.transform.rotozoom(pg.image.load("fig/pachi_stand.png"), 0, 0.9)
         self.img_walk1_right = pg.transform.rotozoom(pg.image.load("fig/pachi_walk1.png"), 0, 0.9)
         self.img_walk2_right = pg.transform.rotozoom(pg.image.load("fig/pachi_walk2.png"), 0, 0.9)
-        # 左向きイメージを生成
-        self.img_stand_left  = pg.transform.flip(self.img_stand_right, True, False)
-        self.img_walk1_left  = pg.transform.flip(self.img_walk1_right, True, False)
-        self.img_walk2_left  = pg.transform.flip(self.img_walk2_right, True, False)
+        self.img_stand_right_lap = pg.transform.laplacian(self.img_stand_right)
+        self.img_walk1_right_lap = pg.transform.laplacian(self.img_walk1_right)
+        self.img_walk2_right_lap = pg.transform.laplacian(self.img_walk2_right)
+        # # 左向きイメージを生成
+        # self.img_stand_left  = pg.transform.flip(self.img_stand_right, True, False)
+        # self.img_walk1_left  = pg.transform.flip(self.img_walk1_right, True, False)
+        # self.img_walk2_left  = pg.transform.flip(self.img_walk2_right, True, False)
         # 初期状態
         self.img           = self.img_stand_right
         self.walk_toggle   = False  # 歩行アニメ切替フラグ
@@ -1139,48 +1170,77 @@ class Pachi:
         self.vy            = 0
         self.on_ground     = True
 
+        self.count = 0
+        self.hidan_count = 0
+
     def update(self, key_lst: list[bool], screen: pg.Surface):
         dx = 0
         # 左右移動
         if key_lst[pg.K_a]:
             dx = -5
-            self.facing_right = False
+            # self.facing_right = False
         elif key_lst[pg.K_d]:
             dx = +5
             self.facing_right = True
+        if self.hidan_count > 0:
+            self.hidan_count -= 1
         # 歩行アニメ: 1秒ごとに切り替え (50fps想定)
-        if dx != 0 and self.on_ground:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_toggle = not self.walk_toggle
-                self.walk_timer = 0
-            if self.facing_right:
-                self.img = self.img_walk1_right if self.walk_toggle else self.img_walk2_right
-            else:
-                self.img = self.img_walk1_left  if self.walk_toggle else self.img_walk2_left
-        # 停止中の立ちポーズ
-        elif self.on_ground:
-            self.img = self.img_stand_right if self.facing_right else self.img_stand_left
+        if self.hidan_count % 5 == 0:
+            if dx != 0 and self.on_ground:
+                self.walk_timer += 1
+                if self.walk_timer >= 10:
+                    self.walk_toggle = not self.walk_toggle
+                    self.walk_timer = 0
+                if self.facing_right:
+                    self.img = self.img_walk1_right if self.walk_toggle else self.img_walk2_right
+                # else:
+                #     self.img = self.img_walk1_left  if self.walk_toggle else self.img_walk2_left
+            # 停止中の立ちポーズ
+            elif self.on_ground:
+                self.img = self.img_stand_right #if self.facing_right else self.img_stand_left
+        else:
+            if dx != 0 and self.on_ground:
+                self.walk_timer += 1
+                if self.walk_timer >= 10:
+                    self.walk_toggle = not self.walk_toggle
+                    self.walk_timer = 0
+                if self.facing_right:
+                    self.img = self.img_walk1_right_lap if self.walk_toggle else self.img_walk2_right_lap
+                # else:
+                #     self.img = self.img_walk1_left  if self.walk_toggle else self.img_walk2_left
+            # 停止中の立ちポーズ
+            elif self.on_ground:
+                self.img = self.img_stand_right_lap #if self.facing_right else self.img_stand_left
         # ジャンプ開始
         if key_lst[pg.K_w] and self.on_ground:
-            self.vy        = -15
+            self.vy        = -18
             self.on_ground = False
+        elif key_lst[pg.K_w] and self.count >= 18:
+            self.vy        = -18
+            self.count = -99999999999
+        if self.on_ground == False:
+            self.count += 1
         # 重力適用・移動
         self.vy += 1
         self.rct.y += self.vy
         self.rct.x += dx
         # 地面(底辺)でリセット
-        if self.rct.bottom >= 480:
-            self.rct.bottom = 480
+        if self.rct.bottom >= 600:
+            self.rct.bottom = 600
             self.vy          = 0
             self.on_ground   = True
+            self.count = 0
         # 画面端制限
         self.rct.clamp_ip(pg.Rect(0, 0, WIDTH, HEIGHT))
         # 方向ベクトル更新
-        if dx != 0:
-            self.dire = (dx, 0)
+        # if dx != 0:
+        #     self.dire = (dx, 0)
         # 描画
         screen.blit(self.img, self.rct)
+
+    def hidan(self, time):
+        self.hidan_count = time
+
 
 class PachiBeam(Beam):
     """
@@ -1219,45 +1279,64 @@ def main():
     if not start_menu.run(screen):
         return
     bird = None
-    bombs = []
+    # bombs = []
     score = None
     life = None
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
-    pachi = Pachi((300, 480))
+    bird_atari = pg.Surface((20, 20))
+    bird_atari_rct = bird_atari.get_rect()
+    bird_atari_rct.center = bird.rct.center
+    pachi = Pachi((300, 600))
+    pachi_atari = pg.Surface((20, 20))
+    pachi_atari_rct = pachi_atari.get_rect()
+    pachi_atari_rct.center = pachi.rct.center
     screen = pg.display.set_mode((WIDTH, HEIGHT))   
     # bg_img = pg.image.load("fig/pg_bg.jpg")
     # bird = Bird((300, 200))
     boss = None
     global zakos
-    zako_interval = random.randint(20, 60)
+    zakos = []
+    zako_interval = 50
     zako_count = 0
     global bomb2s
+    bomb2s = []
     global ataris
-    bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
+    ataris = []
+    # bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
     score = Score()
     game_score = 0
     beam_list = []
     global explosion_list
+    explosion_list = []
     recovery_items = []
     tmr = 0
     invincible = False
+    invincible2 = False
     invincible_timer = 0
+    invincible2_timer = 0
+    life = Life()
 
-    # リスタート処理
-    def reset_game():
-        nonlocal bird, bombs, score, life, game_score, beam_list, recovery_items, tmr, invincible, invincible_timer
-        bird = Bird((300, 200))
-        bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
-        score = Score()
-        life = Life()
-        game_score = 0
-        beam_list = []
-        global explosion_list
-        recovery_items = [] 
-        invincible = False  # 無敵状態かどうか
-        invincible_timer = 0  # 無敵時間のカウント
-    reset_game()
+    # # リスタート処理
+    # def reset_game():
+    #     nonlocal bird, score, life, game_score, beam_list, recovery_items, tmr, invincible, invincible_timer
+    #     bird = Bird((300, 200))
+    #     # bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]  # 不要な変数を使うときは_で表す
+    #     score = Score()
+    #     life = Life()
+    #     game_score = 0
+    #     beam_list = []
+    #     global explosion_list
+    #     global zakos
+    #     global bomb2s
+    #     explosion_list = []
+    #     zakos = []
+    #     bomb2s = []
+    #     recovery_items = [] 
+    #     invincible = False  # 無敵状態かどうか
+    #     invincible_timer = 0  # 無敵時間のカウント
+    #     print(zako_count)
+    # reset_game()
     
     # global explosion_list
     game_clear = Gameclear()
@@ -1276,7 +1355,6 @@ def main():
     clear = pg.mixer.Sound("fig/clear.mp3")
     gameover = pg.mixer.Sound("fig/gameover.mp3")
     crash = pg.mixer.Sound("fig/crash.mp3")
-    
     
     while True:
         # 雑魚フェーズ
@@ -1316,12 +1394,12 @@ def main():
         scroller.draw(screen)    
         # screen.blit(bg_img, [0, 0])
         if beam_list is not None:
-            for bomb in bombs:
-                if beam_list is not None:
-                    if not invincible and (bird.rct.colliderect(bomb.rct) or pachi.rct.colliderect(bomb.rct)):  # 爆弾とこうかとん/ぱっちぃの衝突判定
-                        life.life -= 1
-                        invincible = True
-                        invincible_timer = 50  # 無敵時間
+            # for bomb in bombs:
+            #     if beam_list is not None:
+            #         if not invincible and (bird.rct.colliderect(bomb.rct) or pachi.rct.colliderect(bomb.rct)):  # 爆弾とこうかとん/ぱっちぃの衝突判定
+            #             life.life -= 1
+            #             invincible = True
+            #             invincible_timer = 50  # 無敵時間
                         
             if life.life <= 0:
                 # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
@@ -1352,87 +1430,85 @@ def main():
                             return
                         if event.type == pg.MOUSEBUTTONDOWN: # マウスクリックイベント
                             if retry_rect.collidepoint(event.pos): # クリック位置がリトライボタン内か判定
-                                reset_game() # ゲームをリセット
+                                # print(zako_count)
+                                # reset_game() # ゲームをリセット
                                 return
+                        if event.type == pg.KEYDOWN and event.key == pg.K_r:
+                            # reset_game() # ゲームをリセット
+                            return
                     time.sleep(0.01)
 
-            for i, bomb in enumerate(bombs):
-                for b, beam_obj in enumerate(beam_list):
-                    if beam_obj.rct.colliderect(bomb.rct):
-                        # 爆弾とビームが衝突した際にBeamインスタンス，Bombインスタンスを消滅
-                        crash.play() #  爆発音
-                        explosion = Explosion(bomb.rct.center, 15)
-                        explosion_list.append(explosion)
-                        beam_list[b] = None
-                        bombs[i] = None
-                        bird.change_img(6, screen)  # よろこびエフェクト
-                        bombs = [bomb for bomb in bombs if bomb is not None]
-                        beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
-                        game_score += 1
-                        pg.display.update()
-                        break 
+            # for i, bomb in enumerate(bombs):
+            #     for b, beam_obj in enumerate(beam_list):
+            #         if beam_obj.rct.colliderect(bomb.rct):
+            #             # 爆弾とビームが衝突した際にBeamインスタンス，Bombインスタンスを消滅
+            #             crash.play() #  爆発音
+            #             explosion = Explosion(bomb.rct.center, 15)
+            #             explosion_list.append(explosion)
+            #             beam_list[b] = None
+            #             bombs[i] = None
+            #             bird.change_img(6, screen)  # よろこびエフェクト
+            #             bombs = [bomb for bomb in bombs if bomb is not None]
+            #             beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
+            #             game_score += 1
+            #             pg.display.update()
+            #             break 
             # 雑魚ダメージ判定
             for zako in zakos:
                 for b, beam_obj in enumerate(beam_list):
                     if beam_obj.rct.colliderect(zako.rct): 
                         zako.hidan()
                         beam_list[b] = None
-                        beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
                         game_score += 1
+                beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
             # ボスダメージ判定
-            if beam_list !=[]:
-                for atari in ataris:
-                    for b, beam_obj in enumerate(beam_list):
-                        if beam_obj.rct.colliderect(atari.rct): 
-                            boss.hidan()
-                            beam_list[b] = None
-                            beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
-                            game_score += 1
+            for atari in ataris:
+                for b, beam_obj in enumerate(beam_list):
+                    if beam_obj.rct.colliderect(atari.rct): 
+                        boss.hidan()
+                        beam_list[b] = None
+                        game_score += 1
+                beam_list = [beam_obj for beam_obj in beam_list if beam_obj is not None]
 
 
         # 被弾判定
+        bird_atari_rct.center = bird.rct.center
+        pachi_atari_rct.center = pachi.rct.center
         for bomb2 in bomb2s:
-            if not invincible and (bird.rct.colliderect(bomb2.rct) or pachi.rct.colliderect(bomb2.rct)):
-                # # ゲームオーバ
-                # ー時に，こうかとん画像を切り替え，1秒間表示させる
-                # bird.change_img(8, screen)
-                # fonto = pg.font.Font(None, 80)
-                # txt = fonto.render("Game Over", True, (255, 0, 0))
-                # screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                # pg.display.update()
-                # time.sleep(1)
-                # return
+            if not invincible and bird_atari_rct.colliderect(bomb2.rct):
                 life.life -= 1
                 invincible = True
                 invincible_timer = 50  # 無敵時間
+                bird.hidan(50)
+            if not invincible2 and pachi_atari_rct.colliderect(bomb2.rct):
+                life.life -= 1
+                invincible2 = True
+                invincible2_timer = 50
+                pachi.hidan(50)
         # ボス衝突
         for atari in ataris:
-            if not invincible and (bird.rct.colliderect(atari.rct) or pachi.rct.colliderect(atari.rct)):
-                # # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
-                # bird.change_img(8, screen)
-                # fonto = pg.font.Font(None, 80)
-                # txt = fonto.render("Game Over", True, (255, 0, 0))
-                # screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                # pg.display.update()
-                # time.sleep(1)
-                # return
+            if not invincible and bird_atari_rct.colliderect(atari.rct):
                 life.life -= 1
                 invincible = True
                 invincible_timer = 50  # 無敵時間
+                bird.hidan(50)
+            if not invincible2 and pachi_atari_rct.colliderect(atari.rct):
+                life.life -= 1
+                invincible2 = True
+                invincible2_timer = 50
+                pachi.hidan(50)
         # 雑魚衝突    
         for zako in zakos:
-            if not invincible and (bird.rct.colliderect(zako.rct) or pachi.rct.colliderect(zako.rct)):
-                # # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
-                # bird.change_img(8, screen)
-                # fonto = pg.font.Font(None, 80)
-                # txt = fonto.render("Game Over", True, (255, 0, 0))
-                # screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                # pg.display.update()
-                # time.sleep(1)
-                # return
+            if not invincible and bird_atari_rct.colliderect(zako.rct):
                 life.life -= 1
                 invincible = True
                 invincible_timer = 50  # 無敵時間
+                bird.hidan(50)
+            if not invincible2 and pachi_atari_rct.colliderect(zako.rct):
+                life.life -= 1
+                invincible2 = True
+                invincible2_timer = 50
+                pachi.hidan(50)
         
         if boss != None: # ボス
             if boss.update(screen, bird, bird):
@@ -1482,8 +1558,8 @@ def main():
         pachi.update(key_lst, screen)
         score.update(game_score, screen)
         life.update(life.life, screen)
-        for bomb in bombs:
-            bomb.update(screen)
+        # for bomb in bombs:
+        #     bomb.update(screen)
         
         #  ゲームクリアを表示
         if phase == 10:
@@ -1495,13 +1571,15 @@ def main():
             return
         
         # 回復アイテム
-        if tmr % 400 == 0: 
+        if tmr % 400 == 399 and len(recovery_items) < 3: 
             recovery_items.append(Recovery())
 
         new_recovery_items = []
         for recovery in recovery_items:
             recovery.update(screen) # 描画のためにscreenを渡す
             if bird.rct.colliderect(recovery.rect):
+                life.life += 1
+            elif pachi.rct.colliderect(recovery.rect):
                 life.life += 1
             else:
                 new_recovery_items.append(recovery) # 衝突がない場合は保持
@@ -1511,6 +1589,10 @@ def main():
             invincible_timer -= 1
             if invincible_timer <= 0:
                 invincible = False
+        if invincible2:
+            invincible2_timer -= 1
+            if invincible2_timer <= 0:
+                invincible2 = False
         for bomb2 in bomb2s:
             if bomb2.update(screen):
                 bomb2s.remove(bomb2)
@@ -1519,6 +1601,7 @@ def main():
                 explosion = Explosion(zako.rct.center, 15)
                 explosion_list.append(explosion)
                 zako_count += 1
+                crash.play()
                 zakos.remove(zako)
             if check_bound(zako.rct, 50, 50) != (True, True):
                 zakos.remove(zako)
@@ -1526,6 +1609,8 @@ def main():
         # 当たり判定視覚化
         # for atari in ataris:
         #     atari.update(screen)
+        # screen.blit(bird_atari, bird_atari_rct)
+        # screen.blit(pachi_atari, pachi_atari_rct)
 
         #  独自の機能：ゲームクリアを表示
         # if game_score == NUM_OF_BOMBS:
@@ -1534,7 +1619,7 @@ def main():
         #     time.sleep(3)
         #     return
         
-        if phase == 1 and zako_count >= 5:
+        if phase == 1 and zako_count >= 10:
             zakos = []
             # beam.list = []
             bomb2s = []
@@ -1542,8 +1627,12 @@ def main():
             pg.draw.rect(maku_img, "#000000", (0,0,WIDTH,HEIGHT))
             font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 40)
             txt = font.render(f"蒲田キャンパスにカチコミだ！！！", 0, (255, 255, 255))
+            pg.mixer.music.load("fig/boss.mp3")
+            pg.mixer.music.play(-1)
             if bird != None:    
                 bird.rct.center = (200, 200) # 工科トン座標変更
+            pachi = Pachi((300, 600))
+            scroller=Background(["boss","boss"],0.41,False)
             phase = 2
         if phase == 2:
             screen.blit(maku_img, (0,0))
@@ -1565,6 +1654,8 @@ def main():
                 pg.draw.rect(maku_img, "#000000", (0,0,WIDTH,HEIGHT))
                 font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 40)
                 txt = font.render(f"黒幕???「あなた達は本当によく働いてくれました」", 0, (255, 255, 255))
+                scroller=Background(["boss"],1)
+                pg.mixer.music.stop()
                 phase = 6
         if phase == 6:
             screen.blit(maku_img, (0,0))
@@ -1581,6 +1672,8 @@ def main():
             beam_list = []
             if phase_count > 350:
                 phase_count = 0
+                pg.mixer.music.load("fig/boss2.mp3")
+                pg.mixer.music.play(-1)
                 phase = 8
 
         pg.display.update()
